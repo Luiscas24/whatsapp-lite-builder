@@ -1,0 +1,108 @@
+name: 'Orquestador de Compilación con Firma'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  preparar-y-firmar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permiso crucial para poder hacer push de vuelta al repositorio
+    outputs:
+      commit_sha: ${{ steps.commit-firmado.outputs.commit_sha }}
+    steps:
+      - name: Descargar el Orquestador
+        uses: actions/checkout@v4
+
+      - name: Clonar el WhatsApp Lite Original
+        run: git clone https://github.com fuente-app
+
+      # =========================================================================
+      # ESPACIO PARA TUS MODIFICACIONES
+      # Aquí es donde puedes meter comandos para alterar el código fuente.
+      # Por ejemplo, cambiaremos el nombre en el archivo package.json como prueba:
+      # =========================================================================
+      - name: Modificar código fuente (Ejemplo)
+        run: |
+          cd fuente-app
+          sed -i 's/"name": "whatsapp-lite"/"name": "whatsapp-lite-custom"/g' package.json
+
+      # Este paso realiza el commit utilizando la identidad oficial de GitHub. 
+      # GitHub reconocerá este commit automáticamente como "Verified" (Verificado).
+      # =========================================================================
+      - name: Guardar cambios con Commit Firmado
+        id: commit-firmado
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          
+          # Añadimos los cambios realizados en la carpeta fuente-app
+          git add fuente-app/
+          
+          # Solo hacemos commit si realmente hubo algún cambio detectado
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: aplicar modificaciones automáticas y preparar fuentes"
+            git push origin main
+          else
+            echo "No se detectaron cambios para comitear."
+          fi
+          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+  compilar-aplicacion:
+    needs: preparar-y-firmar # Espera a que el commit firmado se haya subido con éxito
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            architecture: amd64
+          - os: macos-13
+            architecture: amd64
+          - os: macos-latest
+            architecture: arm64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Descargamos el repositorio apuntando al commit firmado que acabamos de hacer
+      - name: Descargar repositorio modificado
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Instalar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Instalar librerías de desarrollo (Solo Linux)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Instalar dependencias del proyecto
+        run: |
+          cd fuente-app
+          npm install
+
+      - name: Compilar con Tauri Action (Modo Local)
+        uses: tauri-apps/tauri-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: './fuente-app'
+          releaseDraft: false
+          prerelease: false
+
+      - name: Guardar instaladores como Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: whatsapp-lite-${{ matrix.os }}-${{ matrix.architecture }}
+          path: |
+            fuente-app/src-tauri/target/release/bundle/deb/*.deb
+            fuente-app/src-tauri/target/release/bundle/appimage/*.AppImage
+            fuente-app/src-tauri/target/release/bundle/dmg/*.dmg
+            fuente-app/src-tauri/target/release/bundle/macos/*.app
