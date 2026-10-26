@@ -5,9 +5,9 @@ on:
 
 jobs:
   preparar-y-firmar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
-      contents: write # Permiso crucial para poder hacer push de vuelta al repositorio
+      contents: write
     outputs:
       commit_sha: ${{ steps.commit-firmado.outputs.commit_sha }}
     steps:
@@ -15,31 +15,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Clonar el WhatsApp Lite Original
-        run: git clone https://github.com/Bittu-the-coder/whatsapp-lite fuente-app
+        run: git clone https://github.com fuente-app
 
-      # =========================================================================
-      # ESPACIO PARA TUS MODIFICACIONES
-      # Aquí es donde puedes meter comandos para alterar el código fuente.
-      # Por ejemplo, cambiaremos el nombre en el archivo package.json como prueba:
-      # =========================================================================
       - name: Modificar código fuente (Ejemplo)
         run: |
           cd fuente-app
           sed -i 's/"name": "whatsapp-lite"/"name": "whatsapp-lite-custom"/g' package.json
 
-      # Este paso realiza el commit utilizando la identidad oficial de GitHub. 
-      # GitHub reconocerá este commit automáticamente como "Verified" (Verificado).
-      # =========================================================================
       - name: Guardar cambios con Commit Firmado
         id: commit-firmado
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@://github.com"
-          
-          # Añadimos los cambios realizados en la carpeta fuente-app
           git add fuente-app/
-          
-          # Solo hacemos commit si realmente hubo algún cambio detectado
           if ! git diff --cached --quiet; then
             git commit -m "chore: aplicar modificaciones automáticas y preparar fuentes"
             git push origin main
@@ -49,21 +37,22 @@ jobs:
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
   compilar-aplicacion:
-    needs: preparar-y-firmar # Espera a que el commit firmado se haya subido con éxito
+    needs: preparar-y-firmar
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             architecture: amd64
+            target: ''
+          
+          # Mantenemos macos-13 (servidor Intel) para compilar la versión x86_64
           - os: macos-13
             architecture: amd64
-          - os: macos-latest
-            architecture: arm64
+            target: 'x86_64-apple-darwin'
 
     runs-on: ${{ matrix.os }}
     steps:
-      # Descargamos el repositorio apuntando al commit firmado que acabamos de hacer
       - name: Descargar repositorio modificado
         uses: actions/checkout@v4
         with:
@@ -76,9 +65,11 @@ jobs:
 
       - name: Instalar Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Instalar librerías de desarrollo (Solo Linux)
-        if: startsWith(matrix.os, 'ubuntu')
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -88,10 +79,12 @@ jobs:
           cd fuente-app
           npm install
 
-      - name: Compilar con Tauri Action (Modo Local)
-        uses: tauri-apps/tauri-action@v2
+      - name: Compilar con Tauri Action
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ESTA LÍNEA ES CLAVE: Le dice al compilador de Apple que el Min SDK soportado será macOS 11.0 (Big Sur)
+          MACOSX_DEPLOYMENT_TARGET: '11.0'
         with:
           projectPath: './fuente-app'
           releaseDraft: false
