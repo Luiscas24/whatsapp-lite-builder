@@ -42,7 +42,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        include:
           # 1. Linux Intel estable
           - os: ubuntu-22.04
             architecture: amd64
