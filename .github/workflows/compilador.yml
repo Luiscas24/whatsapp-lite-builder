@@ -4,16 +4,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  preparar-y-firmar:
+  preparar-fuente:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    outputs:
-      commit_sha: ${{ steps.commit-firmado.outputs.commit_sha }}
     steps:
-      - name: Descargar el Orquestador
-        uses: actions/checkout@v4
-
       - name: Clonar el WhatsApp Lite Original
         run: git clone https://github.com/Bittu-the-coder/whatsapp-lite fuente-app
 
@@ -23,23 +16,17 @@ jobs:
           # Eliminamos el historial de Git original para que tu repositorio trate los archivos como reales y no como un submódulo vacío
           rm -rf .git
           sed -i 's/"name": "whatsapp-lite"/"name": "whatsapp-lite-custom"/g' package.json
-
-      - name: Guardar cambios con Commit Firmado
-        id: commit-firmado
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://github.com"
-          git add fuente-app/
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: aplicar modificaciones automáticas y preparar fuentes"
-            git push origin main
-          else
-            echo "No se detectaron cambios para comitear."
-          fi
-          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Compartir código preparado
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuente-app
+          path: fuente-app/
+          if-no-files-found: error
+          retention-days: 1
 
   compilar-aplicacion:
-    needs: preparar-y-firmar
+    needs: preparar-fuente
     strategy:
       fail-fast: false
       matrix:
@@ -47,24 +34,23 @@ jobs:
           # 1. Linux Intel estable
           - os: ubuntu-22.04
             architecture: amd64
-            target: ''
           
-          # 2. Linux ARM64 nativo estable
-          - os: ubuntu-22.04
+          # 2. Linux ARM64 nativo
+          - os: ubuntu-22.04-arm
             architecture: arm64
-            target: ''
           
           # 3. macOS Intel (Configurado para compilar ambas arquitecturas de Apple)
           - os: macos-13
             architecture: multi-arch
-            target: 'x86_64-apple-darwin'
+            target: 'universal-apple-darwin'
 
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Descargar repositorio modificado
-        uses: actions/checkout@v4
+      - name: Descargar código preparado
+        uses: actions/download-artifact@v4
         with:
-          ref: main
+          name: fuente-app
+          path: fuente-app
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -82,7 +68,7 @@ jobs:
           targets: x86_64-apple-darwin,aarch64-apple-darwin
 
       - name: Instalar librerías de desarrollo (Solo Linux)
-        if: matrix.os == 'ubuntu-22.04'
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -91,27 +77,17 @@ jobs:
         run: npm install
         working-directory: ./fuente-app
 
-      - name: Compilar con Tauri Action (Para Linux)
+      - name: Compilar con Tauri (Para Linux)
         if: startsWith(matrix.os, 'ubuntu')
-        uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: './fuente-app'
-          releaseDraft: false
-          prerelease: false
+        working-directory: ./fuente-app
+        run: npm run tauri build
 
-      - name: Compilar con Tauri Action (Para macOS Intel y Apple Silicon)
+      - name: Compilar con Tauri (Para macOS)
         if: matrix.os == 'macos-13'
-        uses: tauri-apps/tauri-action@v1
+        working-directory: ./fuente-app
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOSX_DEPLOYMENT_TARGET: '11.0'
-        with:
-          projectPath: './fuente-app'
-          releaseDraft: false
-          prerelease: false
-          args: --target x86_64-apple-darwin --target aarch64-apple-darwin
+        run: npm run tauri build -- --target x86_64-apple-darwin --target aarch64-apple-darwin
 
       - name: Guardar instaladores como Artifacts
         uses: actions/upload-artifact@v4
