@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Clonar el WhatsApp Lite Original
-        run: git clone https://github.com fuente-app
+        run: git clone https://github.com/Bittu-the-coder/whatsapp-lite fuente-app
 
       # =========================================================================
       # ESPACIO PARA TUS MODIFICACIONES
