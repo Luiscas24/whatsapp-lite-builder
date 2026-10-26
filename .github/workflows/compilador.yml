@@ -20,6 +20,8 @@ jobs:
       - name: Modificar código fuente (Ejemplo)
         run: |
           cd fuente-app
+          # Eliminamos el historial de Git original para que tu repositorio trate los archivos como reales y no como un submódulo vacío
+          rm -rf .git
           sed -i 's/"name": "whatsapp-lite"/"name": "whatsapp-lite-custom"/g' package.json
 
       - name: Guardar cambios con Commit Firmado
