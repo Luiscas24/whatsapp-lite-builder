@@ -48,8 +48,8 @@ Cada ejecución del pipeline genera y firma artefactos nativos para las siguient
 ## 💻 Entornos Probados con Éxito
 
 Esta versión pre-release ya ha sido ejecutada y validada en condiciones reales:
-* **Linux (Intel/AMD64):** Probado en **Linux Mint 22.3** funcionando de forma fluida.
-* **macOS (Intel):** Probado en **macOS Ventura** mediante **OpenCore Legacy Patcher (OCLP)**, corriendo de forma nativa en una **MacBook Pro A1278 (Mid 2012)**.
+* **Linux (Intel/AMD64):** Probado en **Linux Mint 22.3** funcionando de forma fluida aunque con algunos glitches en los videos de las historias de usuario, funciona del todo el .deb, aun en pruebas el .appImage, da algunos problemas.
+* **macOS (Intel):** Probado en **macOS Ventura** mediante **OpenCore Legacy Patcher (OCLP).**, corriendo de forma nativa en una **MacBook Pro A1278 (Mid 2012)**. N o funcionan los videos de las historias, no con OCLP al menos, lo demás funciona, salvo por lo demás fallos que pueda tener el proyecto original. Requiere permitir la ejecución como programa de desarrollador desconocido de momento por politicas de seguridad de mac os despues de instalarlo.
 
 ### 🧪 Estado en Arquitectura ARM
 * **Aún no probado:** Los instaladores para arquitecturas ARM (Linux ARM64 / Apple Silicon) se generan automáticamente en el pipeline, pero **aún no han sido validados en hardware real**.
