@@ -38,6 +38,31 @@ jobs:
 
           print("Versión mínima de macOS configurada: 11.0 (Big Sur)")
           PY
+
+      - name: Forzar User Agent compatible en Tauri v2
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          ruta = Path("fuente-app/src-tauri/tauri.conf.json")
+          config = json.loads(ruta.read_text(encoding="utf-8"))
+
+          # Modificamos la configuración de la ventana principal declarada estáticamente
+          # Usamos una firma moderna de Chrome que la regla de Meta aprueba sin restricciones
+          chrome_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+          
+          if "app" in config and "windows" in config["app"] and len(config["app"]["windows"]) > 0:
+              config["app"]["windows"][0]["userAgent"] = chrome_ua
+              print("User Agent inyectado exitosamente en la ventana principal de Tauri v2.")
+          else:
+              print("Error: No se encontró la estructura de ventanas esperada.")
+
+          ruta.write_text(
+              json.dumps(config, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8"
+          )
+          PY
       
       - name: Compartir código preparado
         uses: actions/upload-artifact@v4
