@@ -16,6 +16,28 @@ jobs:
           # Eliminamos el historial de Git original para que tu repositorio trate los archivos como reales y no como un submódulo vacío
           rm -rf .git
           sed -i 's/"name": "whatsapp-lite"/"name": "whatsapp-lite-custom"/g' package.json
+
+      
+      - name: Configurar compatibilidad mínima de macOS
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          ruta = Path("fuente-app/src-tauri/tauri.conf.json")
+          config = json.loads(ruta.read_text(encoding="utf-8"))
+
+          config.setdefault("bundle", {}).setdefault("macOS", {})[
+              "minimumSystemVersion"
+          ] = "11.0"
+
+          ruta.write_text(
+              json.dumps(config, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8"
+          )
+
+          print("Versión mínima de macOS configurada: 11.0 (Big Sur)")
+          PY
       
       - name: Compartir código preparado
         uses: actions/upload-artifact@v4
@@ -40,9 +62,8 @@ jobs:
             architecture: arm64
           
           # 3. macOS Intel (Configurado para compilar ambas arquitecturas de Apple)
-          - os: macos-13
-            architecture: multi-arch
-            target: 'universal-apple-darwin'
+          - os: macos-15-intel
+            architecture: universal
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -62,7 +83,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Instalar Rust (Entorno macOS Multi-arquitectura)
-        if: matrix.os == 'macos-13'
+        if: matrix.os == 'macos-15-intel'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-apple-darwin,aarch64-apple-darwin
@@ -83,11 +104,11 @@ jobs:
         run: npm run tauri build
 
       - name: Compilar con Tauri (Para macOS)
-        if: matrix.os == 'macos-13'
+        if: matrix.os == 'macos-15-intel'
         working-directory: ./fuente-app
         env:
           MACOSX_DEPLOYMENT_TARGET: '11.0'
-        run: npm run tauri build -- --target x86_64-apple-darwin --target aarch64-apple-darwin
+        run: npm run tauri build -- --target universal-apple-darwin
 
       - name: Guardar instaladores como Artifacts
         uses: actions/upload-artifact@v4
@@ -96,5 +117,6 @@ jobs:
           path: |
             fuente-app/src-tauri/target/release/bundle/deb/*.deb
             fuente-app/src-tauri/target/release/bundle/appimage/*.AppImage
-            fuente-app/src-tauri/target/release/bundle/dmg/*.dmg
-            fuente-app/src-tauri/target/release/bundle/macos/*.app
+            fuente-app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            fuente-app/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          if-no-files-found: error
