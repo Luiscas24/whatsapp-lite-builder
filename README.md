@@ -45,6 +45,17 @@ Cada ejecución del pipeline genera y firma artefactos nativos para las siguient
 
 ---
 
+## 💻 Entornos Probados con Éxito
+
+Esta versión pre-release ya ha sido ejecutada y validada en condiciones reales:
+* **Linux (Intel/AMD64):** Probado en **Linux Mint 22.3** funcionando de forma fluida.
+* **macOS (Intel):** Probado en **macOS Ventura** mediante **OpenCore Legacy Patcher (OCLP)**, corriendo de forma nativa en una **MacBook Pro A1278 (Mid 2012)**.
+
+### 🧪 Estado en Arquitectura ARM
+* **Aún no probado:** Los instaladores para arquitecturas ARM (Linux ARM64 / Apple Silicon) se generan automáticamente en el pipeline, pero **aún no han sido validados en hardware real**.
+* **¡Ayúdanos a probar!** Dejamos estos paquetes a total disposición de la comunidad. Si tienes un dispositivo ARM y deseas probarlo, tus comentarios y reportes nos serán de enorme utilidad.
+* **Próximos pasos:** Se prevén pruebas oficiales en entornos Linux ARM en el futuro cercano.
+
 ## 🏗️ Cómo Ejecutar el Constructor
 
 Al estar configurado mediante `workflow_dispatch`, puedes disparar nuevas compilaciones manualmente:
